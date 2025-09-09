@@ -222,7 +222,7 @@ class TelefoniaProcessor:
         self.V_MINIMO = 60
         self.V_UNIDAD = "MINUTO"
         self.MIN_AUX = 0
-        # precios variables (se actualizan por tarifa / o default)
+        # precios variables (se actualizan por tarifa )
         self.V_NORMAL = self.cfg.AUX_NOR
         self.V_REDUCIDO = self.cfg.AUX_RED
         self.V_SRED = self.cfg.AUX_SRED
