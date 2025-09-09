@@ -3,14 +3,14 @@ import sqlite3
 from motor_telefonia import TelefoniaProcessor  # <-- usamos esto para crear el esquema
 
 def cargar_datos_demo(db_path="telefonia.db"):
-    # 0) Bootstrap de esquema: crea todas las tablas/índices si no existen
+
     boot = TelefoniaProcessor(db_path)
-    boot.conn.close()  # cerramos porque abajo reabrimos con sqlite3
+    boot.conn.close() 
 
     con = sqlite3.connect(db_path)
     cur = con.cursor()
 
-    # 1) Limpieza segura (las tablas YA existen)
+    # 1) Limpieza segura 
     for t in (
         "TRAFICO","LOCAL","TELINTER","TRAF_MES","INTERDAT",
         "TARIFAS","TELTARIF","SERVICIO","TRAS_1","TRAF_TRA","RDSI_1","TRAFRDSI"
@@ -77,9 +77,5 @@ def cargar_datos_demo(db_path="telefonia.db"):
         (7654321,'250701101500',180,'2310000'),       # correo de voz NOR
     ])
     con.commit()
-
-    # 6) (Opcional) TRAS_1 / RDSI
-    # cur.execute("INSERT INTO TRAS_1(TELEFONO) VALUES (?)", (9999999,))
-
     con.commit()
     con.close()

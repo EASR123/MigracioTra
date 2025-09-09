@@ -7,11 +7,7 @@ def _query(con, sql, params=None):
     return pd.read_sql_query(sql, con, params=params or [])
 
 def grafico_traf_mes(db_path="telefonia.db", fecha_like=None):
-    """
-    Gráfico de costos por TIPO desde TRAF_MES.
-    - fecha_like: filtra FECHA por prefijo (p.ej. '250701' = YYMMDD, o '2507' = YYMM).
-    - Muestra rango real de fechas (min/max) y anota el costo encima de cada barra.
-    """
+
     con = sqlite3.connect(db_path)
 
     where = ""
@@ -60,9 +56,7 @@ def grafico_traf_mes(db_path="telefonia.db", fecha_like=None):
     plt.show()
 
 def grafico_conteo_por_tabla(db_path="telefonia.db"):
-    """
-    Grafica el conteo de registros por cada tabla principal (equivalentes a tus SELE/USE).
-    """
+
     con = sqlite3.connect(db_path)
     tablas = [
         "TRAFICO","LOCAL","TELINTER","TRAF_MES","INTERDAT",
@@ -99,12 +93,7 @@ def grafico_conteo_por_tabla(db_path="telefonia.db"):
     plt.show()
 
 def exportar_reporte_excel(db_path="telefonia.db", fecha_like=None, out_path="reporte_trafico.xlsx"):
-    """
-    Exporta a Excel:
-      - Detalle TRAF_MES (opcionalmente filtrado por FECHA LIKE)
-      - Resumen por TIPO
-      - Resumen por TELEFONO
-    """
+
     con = sqlite3.connect(db_path)
 
     where = ""

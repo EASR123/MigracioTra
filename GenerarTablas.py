@@ -21,7 +21,7 @@ def ensure_config_schema(con):
         con.commit()
         return
     cur.execute("PRAGMA table_info(CONFIG)")
-    cols = [r[1].upper() for r in cur.fetchall()]  # r[1] = name
+    cols = [r[1].upper() for r in cur.fetchall()]  
     if "VALOR_NUM" not in cols:
         cur.execute("ALTER TABLE CONFIG ADD COLUMN VALOR_NUM REAL")
         con.commit()
@@ -39,7 +39,7 @@ def limpiar_todas(con):
 
 def poblar_config(con):
     """Carga valores en CONFIG (variables alterables en el tiempo)."""
-    ensure_config_schema(con)  # <-- clave para evitar tu error
+    ensure_config_schema(con)  
     cur = con.cursor()
     pares = {
         "REDONDEO": 1,

@@ -35,12 +35,6 @@ class TelefoniaProcessor:
     # ---------- SCHEMA ----------
     def _create_schema(self):
         cur = self.conn.cursor()
-
-        # Equivalentes a tus SELE/USE:COLS_LOCAL 
-        # TRAFICO (fuente de registros), LOCAL (acumulado por teléfono/periodo),
-        # TELINTER (acumulado internet por proveedor), SERVICIO (catálogo de servicios/proveedores),
-        # TRAF_MES (detalle procesado), INTERDAT (no procesados),
-        # TARIFAS/TELTARIF (planes), TRAS_1/TRAF_TRA/RDSI_1/TRAFRDSI (traslados/RDSI)
         cur.executescript("""
         CREATE TABLE IF NOT EXISTS TRAFICO (
           id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -156,7 +150,7 @@ class TelefoniaProcessor:
         """)
         self.conn.commit()
 
-        # Vistas opcionales para “simular” los USE/INDEX del VFP (orden por TEL/FECHA):
+
         cur.executescript("""
         CREATE VIEW IF NOT EXISTS v_TRAFiCO_ordenado AS
         SELECT * FROM TRAFICO ORDER BY TELEFONO, FECHA;
@@ -173,8 +167,6 @@ class TelefoniaProcessor:
         CREATE VIEW IF NOT EXISTS v_TRAFRDSI AS SELECT * FROM TRAFRDSI;
         """)
         self.conn.commit()
-
-    # ---------- UTILIDAD ----------
     @staticmethod
     def _yymmddhhmmss_to_parts(f: str):
         yy, mm, dd = int(f[0:2]), int(f[2:4]), int(f[4:6])
@@ -192,10 +184,10 @@ class TelefoniaProcessor:
         if (self.fh.HORA_RED_1_INI <= hora_hhmm <= self.fh.HORA_RED_1_FIN) or \
            (self.fh.HORA_RED_2_INI <= hora_hhmm <= self.fh.HORA_RED_2_FIN):
             return "RED"
-        return "SRE"  # resto: 02:00–07:59
+        return "SRE"  
     def _post_config_sanity(self):
         """Asegura que los valores críticos existan y sean válidos."""
-        # REDONDEO mínimo = 1 y entero
+
         try:
             r = int(round(float(self.cfg.REDONDEO)))
         except Exception:
@@ -209,7 +201,6 @@ class TelefoniaProcessor:
             return float(v)
         except Exception:
             return None
-
 
     # ---------- ESTADO POR TELÉFONO ----------
     def _reset_telefono_state(self):
@@ -253,7 +244,7 @@ class TelefoniaProcessor:
         cur.execute("SELECT TARIFA FROM TELTARIF WHERE TELEFONO=?", (telefono,))
         row = cur.fetchone()
         if not row:
-            # defaults
+
             self.TAR_AUX = 0
             self.MIN_AUX = 200 * 60
             self.COSTO_TEL += self.cfg.AUX_TAR
@@ -282,7 +273,6 @@ class TelefoniaProcessor:
             self._reset_telefono_state()
             return
 
-        # map TARIFAS
         (
             _TARIFA, MINIMO, UNIDAD, MIN_LIBRES, COS_TARIFA, COS_NORMAL, COS_REDUCI, COS_SRED,
             COS_INTER, COS_RURAL, COS_1, COS_3, COS_TP_RED, COS_TP_SRE, COS_4, COS_CPP,
@@ -305,7 +295,7 @@ class TelefoniaProcessor:
 
     # ---------- PERSISTENCIA ----------
     def _guardar_local(self, telefono: int):
-        # Mapea tiempos y costos desde los diccionarios self.T y self.C
+
         row = {
             "GESTION": self.cfg.PERIODO,
             "TELEFONO": telefono,
@@ -336,7 +326,7 @@ class TelefoniaProcessor:
             "COS_TOT": self.COSTO_TEL
         }
 
-        # Construye el INSERT con el mismo orden de COLS_LOCAL
+
         cols = self.COLS_LOCAL
         placeholders = ",".join("?" for _ in cols)
         sql = f"INSERT INTO LOCAL ({','.join(cols)}) VALUES ({placeholders})"
@@ -353,7 +343,7 @@ class TelefoniaProcessor:
         """, (tel, fecha, duracion, redondeo, destino, internet, cos_tarifa, tipo, costo))
         self.conn.commit()
 
-    # ---------- CÁLCULO DE COSTOS ----------
+
     def _acum(self, clave_tiempo: str, segundos: int, clave_costo: str, costo: float):
         self.T[clave_tiempo] += segundos
         self.C[clave_costo]  += round(costo, 4)
@@ -365,7 +355,7 @@ class TelefoniaProcessor:
         try:
             cur.execute("SELECT CLAVE, VALOR_NUM FROM CONFIG")
         except sqlite3.OperationalError:
-            # No hay tabla CONFIG aún
+
             return
 
         for k, v in cur.fetchall():
@@ -375,7 +365,7 @@ class TelefoniaProcessor:
             if not hasattr(self.cfg, k):
                 continue
             if k == "REDONDEO":
-                # REDONDEO debe ser entero >= 1
+
                 try:
                     vv = int(round(float(val)))
                 except Exception:
@@ -386,7 +376,7 @@ class TelefoniaProcessor:
 
 
 
-    # ---------- PROCESO ----------
+
     def process(self):
         print("INICIO:", datetime.now().date(), datetime.now().time(), "PERIODO:", self.cfg.PERIODO)
         cur = self.conn.cursor()
@@ -395,27 +385,27 @@ class TelefoniaProcessor:
 
         tel_actual = None
         for idx, (TELEFONO, FECHA, DURACION, DESTINO) in enumerate(rows, start=1):
-            # cambio de teléfono => guardar estado anterior
+
             if tel_actual is None or TELEFONO != tel_actual:
                 if tel_actual is not None:
                     self._guardar_local(tel_actual)
-                # reset e inicializar nueva tarifa
+
                 self._reset_telefono_state()
                 self._cargar_tarifa_de_telefono(TELEFONO)
                 tel_actual = TELEFONO
 
-            # ignorados (no facturar)
+
             try:
                 var_des_7 = int(str(DESTINO).strip()[:7] or 0)
             except:
                 var_des_7 = 0
             if TELEFONO in IGNORAR_FACTURACION:
-                # llevar a no procesado
+
                 self.conn.execute("INSERT INTO INTERDAT(TELEFONO,FECHA,DURACION,DESTINO,CONVENIO) VALUES (?,?,?,?,?)",
                                   (TELEFONO, FECHA, DURACION, DESTINO, "NOFACT"))
                 continue
 
-            # redondeo
+
             V_DURA = math.ceil(DURACION / self.cfg.REDONDEO) * self.cfg.REDONDEO
             yy, mm, dd, HORA, hh, mi, ss = self._yymmddhhmmss_to_parts(FECHA)
             fr = self._franja(HORA)
@@ -426,9 +416,8 @@ class TelefoniaProcessor:
             pref8 = destino[:8]
             pref9 = destino[:9]
 
-            # --- INTERNET por SERVICIO (SELE 4/SERVICIO; TELINTER y tarifas especiales)
             prov = 0
-            # Busca en SERVICIO si el destino pertenece a un servicio de internet/adm/tec.
+
             c2 = self.conn.cursor()
             c2.execute("SELECT ID_SERV FROM SERVICIO WHERE TELSER=?", (var_des_7,))
             srow = c2.fetchone()
@@ -439,16 +428,16 @@ class TelefoniaProcessor:
             if pref3 == '107':
                 V_DURA = 60
 
-            # Valor agregado 900161616/900162010 (fijo 2.00 Bs por llamada según batch)
+            # Valor agregado 900161616/900162010
             if pref9 in self.rx.VALOR_AGREGADO_9:
                 costo = self.cfg.AUX_VAG if FECHA[0:6] > '100610' else 0.0
                 self._acum("VAG", 60, "VAG", costo)
                 self._push_traf_mes(TELEFONO, FECHA, DURACION, 60, DESTINO, 0, self.cfg.AUX_VAG, "VAG", costo)
                 continue
 
-            # 104 (cargo por llamada) – a partir de fechas indicadas en el batch:
+            # 104 (cargo por llamada)
             if pref3 == '104':
-                costo = 0.0  # el batch fija 0.0 en varios periodos; si cambia, configura aquí
+                costo = 0.0  
                 self._acum("104", 60, "104", costo)
                 self._push_traf_mes(TELEFONO, FECHA, DURACION, 60, DESTINO, 0, 0.0, "CCC", costo)
                 continue
