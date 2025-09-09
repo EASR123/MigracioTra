@@ -188,9 +188,7 @@ def grafico_traf_mes_comparar(db_path="telefonia.db", fecha_a="250701", fecha_b=
     plt.tight_layout()
     plt.show()
 
-# =======================
-# NUEVO: REPORTE POR TEL
-# =======================
+
 
 def resumen_costo_por_telefono(db_path="telefonia.db", fecha_like=None):
     """
